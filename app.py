@@ -7,7 +7,7 @@ app = Flask(__name__)
 CORS(app)
 
 # PUT YOUR TOKEN HERE
-HF_TOKEN = "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"  # Replace with your actual Hugging Face token
+HF_TOKEN = "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"  # Replace with your actual Hugging Face token
 
 @app.route('/generate', methods=['POST'])
 def generate():
@@ -69,4 +69,5 @@ def generate():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
+
     app.run(host='0.0.0.0', port=5000)
