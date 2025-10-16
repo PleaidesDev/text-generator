@@ -8,7 +8,8 @@ app = Flask(__name__)
 CORS(app)
 
 # Get token from environment variable (more secure) or use hardcoded value
-HF_TOKEN = os.environ.get('HUGGINGFACE_API_KEY', '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')
+# IMPORTANT: Replace 'YOUR_NEW_TOKEN_HERE' with your actual new token from Hugging Face
+HF_TOKEN = os.environ.get('HUGGINGFACE_API_KEY', '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')
 
 @app.route('/generate', methods=['POST'])
 def generate():
