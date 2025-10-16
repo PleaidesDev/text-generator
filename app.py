@@ -106,6 +106,23 @@ def generate():
 def health():
     return jsonify({'status': 'healthy'}), 200
 
+@app.route('/debug-token', methods=['GET'])
+def debug_token():
+    token = os.environ.get('HUGGINGFACE_API_KEY')
+    if token:
+        masked = f"{token[:7]}...{token[-4:]}" if len(token) > 11 else "TOO_SHORT"
+        return jsonify({
+            'token_found': True,
+            'token_preview': masked,
+            'token_length': len(token),
+            'starts_with_hf': token.startswith('hf_')
+        })
+    else:
+        return jsonify({
+            'token_found': False,
+            'message': 'HUGGINGFACE_API_KEY not set in environment'
+        })
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
