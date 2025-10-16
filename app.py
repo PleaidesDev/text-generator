@@ -2,12 +2,13 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import requests
 import traceback
+import os
 
 app = Flask(__name__)
 CORS(app)
 
-# PUT YOUR TOKEN HERE
-HF_TOKEN = "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"  # Replace with your actual Hugging Face token
+# Get token from environment variable (more secure) or use hardcoded value
+HF_TOKEN = os.environ.get('HUGGINGFACE_API_KEY', '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')
 
 @app.route('/generate', methods=['POST'])
 def generate():
@@ -25,49 +26,86 @@ def generate():
             'Content-Type': 'application/json'
         }
         
-        # Try multiple models
+        # Use free inference API models
         models_to_try = [
-            "meta-llama/Llama-3.2-1B-Instruct",
-            "Qwen/Qwen2.5-0.5B-Instruct",
-            "microsoft/Phi-3.5-mini-instruct"
+            "mistralai/Mistral-7B-Instruct-v0.2",
+            "google/flan-t5-large",
+            "gpt2-large",
+            "distilgpt2"
         ]
         
         for model in models_to_try:
-            payload = {
-                "model": model,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": prompt
+            try:
+                print(f"Trying model: {model}")
+                
+                # Use the standard Inference API endpoint
+                api_url = f"https://api-inference.huggingface.co/models/{model}"
+                
+                payload = {
+                    "inputs": prompt,
+                    "parameters": {
+                        "max_new_tokens": 250,
+                        "temperature": 0.7,
+                        "top_p": 0.95,
+                        "do_sample": True
                     }
-                ]
-            }
-            
-            print(f"Trying model: {model}")
-            
-            response = requests.post(
-                'https://router.huggingface.co/v1/chat/completions',
-                headers=headers,
-                json=payload,
-                timeout=30
-            )
-            
-            print(f"Response status: {response.status_code}")
-            
-            if response.status_code == 200:
-                result = response.json()
-                generated_text = result['choices'][0]['message']['content']
-                print(f"Success with model: {model}")
-                return jsonify({'generated_text': generated_text})
+                }
+                
+                response = requests.post(
+                    api_url,
+                    headers=headers,
+                    json=payload,
+                    timeout=60
+                )
+                
+                print(f"Response status: {response.status_code}")
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    
+                    # Handle different response formats
+                    if isinstance(result, list) and len(result) > 0:
+                        generated_text = result[0].get('generated_text', '')
+                    elif isinstance(result, dict):
+                        generated_text = result.get('generated_text', str(result))
+                    else:
+                        generated_text = str(result)
+                    
+                    # Clean up the output (remove the input prompt if it's repeated)
+                    if generated_text.startswith(prompt):
+                        generated_text = generated_text[len(prompt):].strip()
+                    
+                    print(f"Success with model: {model}")
+                    return jsonify({
+                        'generated_text': generated_text,
+                        'model_used': model
+                    })
+                
+                elif response.status_code == 503:
+                    print(f"Model {model} is loading, trying next...")
+                    continue
+                    
+                else:
+                    print(f"Error response: {response.text}")
+                    
+            except Exception as model_error:
+                print(f"Error with model {model}: {str(model_error)}")
+                continue
         
         # If all models failed
-        return jsonify({'error': 'No models available'}), 500
+        return jsonify({
+            'error': 'All models are currently unavailable. Please try again in a moment.'
+        }), 503
         
     except Exception as e:
         error_msg = f'Exception: {str(e)}\n{traceback.format_exc()}'
         print(error_msg)
         return jsonify({'error': str(e)}), 500
 
-if __name__ == '__main__':
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify({'status': 'healthy'}), 200
 
-    app.run(host='0.0.0.0', port=5000)
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
