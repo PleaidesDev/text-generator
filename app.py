@@ -9,7 +9,7 @@ CORS(app)
 
 # Get token from environment variable (more secure) or use hardcoded value
 # IMPORTANT: Replace 'YOUR_NEW_TOKEN_HERE' with your actual new token from Hugging Face
-HF_TOKEN = os.environ.get('HUGGINGFACE_API_KEY', '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')
+HF_TOKEN = os.environ.get('HUGGINGFACE_API_KEY', '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')
 
 @app.route('/generate', methods=['POST'])
 def generate():
@@ -127,3 +127,4 @@ def debug_token():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
+
