@@ -1,13 +1,20 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import requests
-import traceback
+from openai import OpenAI
 import os
+import traceback
 
 app = Flask(__name__)
 CORS(app)
 
-HF_TOKEN = os.environ.get('HUGGINGFACE_API_KEY')
+# Load Hugging Face token from Render environment variable
+HF_TOKEN = os.environ.get("HUGGINGFACE_API_KEY")
+
+# Initialize OpenAI-compatible client for Hugging Face Router
+client = OpenAI(
+    base_url="https://router.huggingface.co/v1",
+    api_key=HF_TOKEN,
+)
 
 @app.route('/generate', methods=['POST'])
 def generate():
@@ -18,61 +25,35 @@ def generate():
         if not prompt:
             return jsonify({'error': 'No prompt provided'}), 400
 
-        headers = {
-            "Authorization": f"Bearer {HF_TOKEN}",
-            "Content-Type": "application/json"
-        }
+        print(f"Received prompt: {prompt}")
 
-        # Use the Hugging Face router endpoint (OpenAI-compatible)
-        api_url = "https://router.huggingface.co/v1/chat/completions"
+        # Send request to Hugging Face Router using OpenAI-compatible API
+        completion = client.chat.completions.create(
+            model="openai/gpt-oss-20b:groq",
+            messages=[
+                {"role": "user", "content": prompt}
+            ]
+        )
 
-        # Free/public models that generally work on the router
-        models_to_try = [
-            "gpt2",
-            "distilgpt2",
-            "facebook/opt-350m",
-            "tiiuae/falcon-1b"
-        ]
+        # Extract text from the router response
+        generated_text = completion.choices[0].message.content
 
-        for model in models_to_try:
-            try:
-                payload = {
-                    "model": model,
-                    "messages": [{"role": "user", "content": prompt}]
-                }
-
-                print(f"Trying model: {model}")
-                response = requests.post(api_url, headers=headers, json=payload, timeout=60)
-                print(f"Response status: {response.status_code}")
-
-                if response.status_code == 200:
-                    result = response.json()
-                    generated_text = result["choices"][0]["message"]["content"]
-                    print(f"Success with model: {model}")
-                    return jsonify({
-                        "generated_text": generated_text,
-                        "model_used": model
-                    })
-
-                else:
-                    print(f"Error response from {model}: {response.text}")
-
-            except Exception as model_error:
-                print(f"Error with model {model}: {str(model_error)}")
-                continue
-
+        print(f"Success: Generated text from openai/gpt-oss-20b:groq")
         return jsonify({
-            'error': 'All models are currently unavailable. Please try again later.'
-        }), 503
+            "generated_text": generated_text,
+            "model_used": "openai/gpt-oss-20b:groq"
+        })
 
     except Exception as e:
         error_msg = f"Exception: {str(e)}\n{traceback.format_exc()}"
         print(error_msg)
         return jsonify({'error': str(e)}), 500
 
+
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({'status': 'healthy'}), 200
+
 
 @app.route('/debug-token', methods=['GET'])
 def debug_token():
@@ -90,6 +71,7 @@ def debug_token():
             'token_found': False,
             'message': 'HUGGINGFACE_API_KEY not set in environment'
         })
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
