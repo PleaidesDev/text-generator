@@ -29,12 +29,11 @@ def generate():
         
         # Use free inference API models
         models_to_try = [
-            "mistralai/Mistral-7B-Instruct-v0.2",
-            "google/flan-t5-large",
-            "gpt2-large",
-            "distilgpt2"
-        ]
-        
+    "gpt2",
+    "distilgpt2",
+    "facebook/opt-350m",
+    "tiiuae/falcon-1b"
+]        
         for model in models_to_try:
             try:
                 print(f"Trying model: {model}")
@@ -127,6 +126,7 @@ def debug_token():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
+
 
 
 
